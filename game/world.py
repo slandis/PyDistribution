@@ -1,4 +1,5 @@
 import pygame as pg
+import random
 from .settings import TILE_SIZE
 
 class World:
@@ -35,11 +36,22 @@ class World:
 
         minx = min([x for x, y in iso_poly])
         miny = min([y for x, y in iso_poly])
+
+        r = random.randint(1, 100)
+
+        if r <= 5:
+            tile = "tree"
+        elif r <= 10:
+            tile = "rock"
+        else:
+            tile = ""
+
         out = {
             "grid": [grid_x, grid_y],
             "cart_rect": rect,
             "iso_poly": iso_poly,
-            "render_pos": [minx, miny]
+            "render_pos": [minx, miny],
+            "tile": tile
         }
 
         return out
