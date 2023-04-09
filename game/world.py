@@ -99,15 +99,7 @@ class World:
             
         screen.fill((0, 0, 0))
         screen.blit(game_map, map_rect)
-        pg.draw.lines(screen, (164, 164, 164), True, map_outline, 3)
-        #pygame.draw.line(window, (255, 0, 0), origin, origin+x_axis, 3)
-        #pygame.draw.line(window, (0, 255, 0), origin, origin+y_axis, 3)
-        #pygame.draw.circle(window, (255, 255, 255), origin, 5)
-        #pygame.draw.circle(window, (255, 0, 0), origin+x_axis, 5)
-        #pygame.draw.circle(window, (0, 255, 0), origin+y_axis, 5)
-        #window.blit(textO, textO.get_rect(topright = origin+(-5, 5)))   
-        #window.blit(textX, textX.get_rect(bottomright = origin+x_axis+(-5, -5)))
-        #window.blit(textY, textX.get_rect(topright = origin+y_axis+(-5, 5))) 
+
         pg.draw.ellipse(screen, (255, 255, 0),
                         (p_position[0]-16,
                          p_position[1]-8,
