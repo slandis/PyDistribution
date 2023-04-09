@@ -1,2 +1,3 @@
 # PyDistribution
  
+A comical attempt at a python based distribution RTS
