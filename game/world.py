@@ -1,234 +1,120 @@
 import pygame as pg
-import random
-import noise
-from .settings import TILE_SIZE
-from .buildings import Lumbermill, Stonemasonry
+from .settings import TILE_SIZE, ZOOM_FACTOR, MIN_ZOOM, MAX_ZOOM
+from .maps import gamemap1
+from .tiles import defaultTiles
 
 class World:
-    def __init__(self, resource_manager, entities, hud, grid_length_x, grid_length_y, width, height):
-        self.resource_manager = resource_manager
-        self.entities = entities
-        self.hud = hud
-        self.grid_length_x = grid_length_x
-        self.grid_length_y = grid_length_y
-        self.width = width
-        self.height = height
 
-        self.perlin_scale = grid_length_x/2
+    def __init__(self, mapSizeX, mapSizeY, screenSizeX, screenSizeY, gameMap = None):
+        self.mapSizeX = mapSizeX
+        self.mapSizeY = mapSizeY
+        self.screenSizeX = screenSizeX
+        self.screenSizeY = screenSizeY
 
-        self.grass_tiles = pg.Surface((grid_length_x * TILE_SIZE * 2, grid_length_y * TILE_SIZE + 2 * TILE_SIZE)).convert_alpha()
-        self.tiles = self.load_images()
-        self.world = self.create_world()
-        self.collision_matrix = self.create_collision_matrix()
-
-        self.buildings = [[None for x in range(self.grid_length_x)] for y in range(self.grid_length_y)]
-        self.workers = [[None for x in range(self.grid_length_x)] for y in range(self.grid_length_y)]
-
-        self.temp_tile = None
-        self.examine_tile = None
-
-    def update(self, camera):
-        mouse_pos = pg.mouse.get_pos()
-        mouse_action = pg.mouse.get_pressed()
-
-        if mouse_action[2]:
-            self.examine_tile = None
-            self.hud.examined_tile = None
-
-        self.temp_tile = None
-        if self.hud.selected_tile is not None:
-
-            grid_pos = self.mouse_to_grid(mouse_pos[0], mouse_pos[1], camera.scroll)
-
-            if self.can_place_tile(grid_pos):
-                img = self.hud.selected_tile["image"].copy()
-                img.set_alpha(100)
-
-                render_pos = self.world[grid_pos[0]][grid_pos[1]]["render_pos"]
-                iso_poly = self.world[grid_pos[0]][grid_pos[1]]["iso_poly"]
-                collision = self.world[grid_pos[0]][grid_pos[1]]["collision"]
-
-                self.temp_tile = {
-                    "image": img,
-                    "render_pos": render_pos,
-                    "iso_poly": iso_poly,
-                    "collision": collision
-                }
-
-                if mouse_action[0] and not collision:
-                    if self.hud.selected_tile["name"] == "lumbermill":
-                        ent = Lumbermill(render_pos, self.resource_manager)
-                        self.entities.append(ent)
-                        self.buildings[grid_pos[0]][grid_pos[1]] = ent
-                    elif self.hud.selected_tile["name"] == "stonemasonry":
-                        ent = Stonemasonry(render_pos, self.resource_manager)
-                        self.entities.append(ent)
-                        self.buildings[grid_pos[0]][grid_pos[1]] = ent
-                    self.world[grid_pos[0]][grid_pos[1]]["collision"] = True
-                    self.collision_matrix[grid_pos[1]][grid_pos[0]] = 0
-                    self.hud.selected_tile = None
-
+        if gameMap == None:
+            self.gameMap = gamemap1
         else:
-            grid_pos = self.mouse_to_grid(mouse_pos[0], mouse_pos[1], camera.scroll)
+            self.gameMap = gameMap
 
-            if self.can_place_tile(grid_pos):
-                building = self.buildings[grid_pos[0]][grid_pos[1]]
-                if mouse_action[0] and (building is not None):
-                    self.examine_tile = grid_pos
-                    self.hud.examined_tile = building
+        self.zoom_level = 1.0
+        self.columns, self.rows = len(self.gameMap[0]), len(self.gameMap)
+        self.p_col, self.p_row = 2, 2
+    
+    def tileRect(self, column, row, tile_size):
+        x = (column + row) * tile_size[0] / 2
+        y = ((self.columns - column - 1) + row) * tile_size[1] / 2
 
+        return pg.Rect(x, y, *tile_size)
+
+    def inverseMat2x2(self, m):
+        a, b, c, d = m[0].x, m[0].y, m[1].x, m[1].y
+        det = 1 / (a*d - b*c)
+
+        return [(d*det, -b*det), (-c*det, a*det)]
+
+    def transform(self, p, mat2x2):
+        x = p[0] * mat2x2[0][0] + p[1] * mat2x2[1][0]
+        y = p[0] * mat2x2[0][1] + p[1] * mat2x2[1][1]
+
+        return pg.math.Vector2(x, y)
+    
+    def zoomIn(self):
+        if (self.zoom_level + ZOOM_FACTOR) < MAX_ZOOM:
+            self.zoom_level += ZOOM_FACTOR
+        else:
+            self.zoom_level = MAX_ZOOM
+
+    def zoomOut(self):
+        if (self.zoom_level - ZOOM_FACTOR) > MIN_ZOOM:
+            self.zoom_level -= ZOOM_FACTOR
+        else:
+            self.zoom_level = MIN_ZOOM
+    
+    def update(self, camera):
+        pass
 
     def draw(self, screen, camera):
-        screen.blit(self.grass_tiles, (camera.scroll.x, camera.scroll.y))
+        isometric_tiles = {}
 
-        for x in range(self.grid_length_x):
-            for y in range(self.grid_length_y):
-                render_pos =  self.world[x][y]["render_pos"]
-                # draw world tiles
-                tile = self.world[x][y]["tile"]
-                if tile != "":
-                    screen.blit(self.tiles[tile],
-                                    (render_pos[0] + self.grass_tiles.get_width()/2 + camera.scroll.x,
-                                     render_pos[1] - (self.tiles[tile].get_height() - TILE_SIZE) + camera.scroll.y))
+        for key, color in defaultTiles.items():
+            tile_surf = pg.Surface((TILE_SIZE * self.zoom_level, TILE_SIZE * self.zoom_level), pg.SRCALPHA)
+            tile_surf.fill(color)
+            tile_surf = pg.transform.rotate(tile_surf, 45)
+            isometric_size = tile_surf.get_width()
+            tile_surf = pg.transform.scale(tile_surf, (isometric_size, isometric_size / 2))
+            isometric_tiles[key] = tile_surf
 
-                # draw buildings
-                building = self.buildings[x][y]
-                if building is not None:
-                    screen.blit(building.image,
-                                    (render_pos[0] + self.grass_tiles.get_width()/2 + camera.scroll.x,
-                                     render_pos[1] - (building.image.get_height() - TILE_SIZE) + camera.scroll.y))
-                    if self.examine_tile is not None:
-                        if (x == self.examine_tile[0]) and (y == self.examine_tile[1]):
-                            mask = pg.mask.from_surface(building.image).outline()
-                            mask = [(x + render_pos[0] + self.grass_tiles.get_width()/2 + camera.scroll.x, y + render_pos[1] - (building.image.get_height() - TILE_SIZE) + camera.scroll.y) for x, y in mask]
-                            pg.draw.polygon(screen, (255, 255, 255), mask, 3)
+        tile_size = (isometric_size, isometric_size / 2)
 
-                # draw workers
-                worker = self.workers[x][y]
-                if worker is not None:
-                    screen.blit(worker.image,
-                                    (render_pos[0] + self.grass_tiles.get_width()/2 + camera.scroll.x,
-                                     render_pos[1] - (worker.image.get_height() - TILE_SIZE) + camera.scroll.y))
+        game_map = pg.Surface(((self.columns + self.rows) * isometric_size / 2,
+                               (self.columns + self.rows) * isometric_size / 4),
+                               pg.SRCALPHA)
+        
+        for column in range(self.columns):
+            for row in range(self.rows):
+                tile_surf = isometric_tiles[self.gameMap[row][column]]
+                tile_rect = self.tileRect(column, row, tile_size)
+                game_map.blit(tile_surf, tile_rect)
 
-        if self.temp_tile is not None:
-            iso_poly = self.temp_tile["iso_poly"]
-            iso_poly = [(x + self.grass_tiles.get_width()/2 + camera.scroll.x, y + camera.scroll.y) for x, y in iso_poly]
-            if self.temp_tile["collision"]:
-                pg.draw.polygon(screen, (255, 0, 0), iso_poly, 3)
-            else:
-                pg.draw.polygon(screen, (255, 255, 255), iso_poly, 3)
-            render_pos = self.temp_tile["render_pos"]
-            screen.blit(
-                self.temp_tile["image"],
-                (
-                    render_pos[0] + self.grass_tiles.get_width()/2 + camera.scroll.x,
-                    render_pos[1] - (self.temp_tile["image"].get_height() - TILE_SIZE) + camera.scroll.y
-                )
-            )
-
-    def create_world(self):
-        world = []
-
-        for grid_x in range(self.grid_length_x):
-            world.append([])
-            for grid_y in range(self.grid_length_y):
-                world_tile = self.grid_to_world(grid_x, grid_y)
-                world[grid_x].append(world_tile)
-
-                render_pos = world_tile["render_pos"]
-                self.grass_tiles.blit(self.tiles["block"], (render_pos[0] + self.grass_tiles.get_width()/2, render_pos[1]))
-
-
-        return world
-
-    def grid_to_world(self, grid_x, grid_y):
-        rect = [
-            (grid_x * TILE_SIZE, grid_y * TILE_SIZE),
-            (grid_x * TILE_SIZE + TILE_SIZE, grid_y * TILE_SIZE),
-            (grid_x * TILE_SIZE + TILE_SIZE, grid_y * TILE_SIZE + TILE_SIZE),
-            (grid_x * TILE_SIZE, grid_y * TILE_SIZE + TILE_SIZE)
+        map_rect = game_map.get_rect(center = screen.get_rect().center)
+        map_outline = [
+            pg.math.Vector2(0, self.columns * isometric_size / 4), 
+            pg.math.Vector2(self.columns * isometric_size / 2, 0),
+            pg.math.Vector2((self.columns + self.rows) * isometric_size / 2, self.rows * isometric_size / 4),
+            pg.math.Vector2(self.rows * isometric_size / 2, (self.columns + self.rows) * isometric_size / 4)
         ]
+        for pt in map_outline:
+            pt += map_rect.topleft 
 
-        iso_poly = [self.cart_to_iso(x, y) for x, y in rect]
+        self.origin = map_outline[0]
+        x_axis = (map_outline[1] - map_outline[0]) / self.columns
+        y_axis = (map_outline[3] - map_outline[0]) / self.rows
 
-        minx = min([x for x, y in iso_poly])
-        miny = min([y for x, y in iso_poly])
-
-        r = random.randint(1, 100)
-        perlin = 100 * noise.pnoise2(grid_x/self.perlin_scale, grid_y/self.perlin_scale)
-
-        if (perlin >= 15) or (perlin <= -35):
-            tile = "tree"
-        else:
-            if r == 1:
-                tile = "tree"
-            elif r == 2:
-                tile = "rock"
-            else:
-                tile = ""
-
-        out = {
-            "grid": [grid_x, grid_y],
-            "cart_rect": rect,
-            "iso_poly": iso_poly,
-            "render_pos": [minx, miny],
-            "tile": tile,
-            "collision": False if tile == "" else True
-        }
-
-        return out
-
-    def create_collision_matrix(self):
-        collision_matrix = [[1 for x in range(self.grid_length_x)] for y in range(self.grid_length_y)]
-        for x in range(self.grid_length_x):
-            for y in range(self.grid_length_y):
-                if self.world[x][y]["collision"]:
-                    collision_matrix[y][x] = 0
-        return collision_matrix
-
-    def cart_to_iso(self, x, y):
-        iso_x = x - y
-        iso_y = (x + y)/2
-        return iso_x, iso_y
-
-    def mouse_to_grid(self, x, y, scroll):
-        # transform to world position (removing camera scroll and offset)
-        world_x = x - scroll.x - self.grass_tiles.get_width()/2
-        world_y = y - scroll.y
-        # transform to cart (inverse of cart_to_iso)
-        cart_y = (2*world_y - world_x)/2
-        cart_x = cart_y + world_x
-        # transform to grid coordinates
-        grid_x = int(cart_x // TILE_SIZE)
-        grid_y = int(cart_y // TILE_SIZE)
-        return grid_x, grid_y
-
-    def load_images(self):
-        block = pg.image.load("assets/graphics/block.png").convert_alpha()
-        # read images
-        building1 = pg.image.load("assets/graphics/building01.png").convert_alpha()
-        building2 = pg.image.load("assets/graphics/building02.png").convert_alpha()
-        tree = pg.image.load("assets/graphics/tree.png").convert_alpha()
-        rock = pg.image.load("assets/graphics/rock.png").convert_alpha()
-
-        images = {
-            "building1": building1,
-            "building2": building2,
-            "tree": tree,
-            "rock": rock,
-            "block": block
-        }
-
-        return images
-
-    def can_place_tile(self, grid_pos):
-        mouse_on_panel = False
-        for rect in [self.hud.resources_rect, self.hud.build_rect, self.hud.select_rect]:
-            if rect.collidepoint(pg.mouse.get_pos()):
-                mouse_on_panel = True
-        world_bounds = (0 <= grid_pos[0] < self.grid_length_x) and (0 <= grid_pos[1] < self.grid_length_x)
-
-        if world_bounds and not mouse_on_panel:
-            return True
-        else:
-            return False
+        point_to_grid = self.inverseMat2x2((x_axis, y_axis))
+    
+        p_position = self.transform((self.p_col + 0.5, self.p_row + 0.5), (x_axis, y_axis)) + self.origin
+        m_pos = pg.mouse.get_pos()
+        m_grid_pos = self.transform(pg.math.Vector2(m_pos) - self.origin, point_to_grid)
+        m_col, m_row = int(m_grid_pos[0]), int(m_grid_pos[1])
+            
+        screen.fill((0, 0, 0))
+        screen.blit(game_map, map_rect)
+        pg.draw.lines(screen, (164, 164, 164), True, map_outline, 3)
+        #pygame.draw.line(window, (255, 0, 0), origin, origin+x_axis, 3)
+        #pygame.draw.line(window, (0, 255, 0), origin, origin+y_axis, 3)
+        #pygame.draw.circle(window, (255, 255, 255), origin, 5)
+        #pygame.draw.circle(window, (255, 0, 0), origin+x_axis, 5)
+        #pygame.draw.circle(window, (0, 255, 0), origin+y_axis, 5)
+        #window.blit(textO, textO.get_rect(topright = origin+(-5, 5)))   
+        #window.blit(textX, textX.get_rect(bottomright = origin+x_axis+(-5, -5)))
+        #window.blit(textY, textX.get_rect(topright = origin+y_axis+(-5, 5))) 
+        pg.draw.ellipse(screen, (255, 255, 0),
+                        (p_position[0]-16,
+                         p_position[1]-8,
+                         isometric_size * 0.5,
+                         (isometric_size * 0.5) / 2))
+        
+        if 0 <= m_grid_pos[0] < self.columns and 0 <= m_grid_pos[1] < self.rows:
+            tile_rect = self.tileRect(m_col, m_row, tile_size).move(map_rect.topleft)
+            pts = [tile_rect.midleft, tile_rect.midtop, tile_rect.midright, tile_rect.midbottom]
+            pg.draw.lines(screen, (255, 255, 255), True, pts, 4)

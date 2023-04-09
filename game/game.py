@@ -1,12 +1,9 @@
 import pygame as pg
 import sys
 from .world import World
-from .settings import TILE_SIZE
+from .settings import TILE_SIZE, MIN_ZOOM, MAX_ZOOM, ZOOM_FACTOR
 from .utils import draw_text
 from .camera import Camera
-from .hud import Hud
-from .resource_manager import ResourceManager
-from .workers import Worker
 
 class Game:
     def __init__(self, screen, clock):
@@ -14,18 +11,8 @@ class Game:
         self.clock = clock
         self.width, self.height = self.screen.get_size()
 
-        # entities
-        self.entities = []
-
-        # resource manager
-        self.resource_manager = ResourceManager()
-
-        # hud
-        self.hud = Hud(self.resource_manager, self.width, self.height)
-
         # world
-        self.world = World(self.resource_manager, self.entities, self.hud, 50, 50, self.width, self.height)
-        for _ in range(10): Worker(self.world.world[25][25], self.world)
+        self.world = World(50, 50, self.width, self.height)
 
         # camera
         self.camera = Camera(self.width, self.height)
@@ -45,18 +32,29 @@ class Game:
                 sys.exit()
             if event.type == pg.KEYDOWN:
                 if event.key == pg.K_ESCAPE:
-                    self.playing = False
+                    pg.quit()
+                    sys.exit()
+                if event.key == pg.K_a and self.world.p_col > 0:
+                    self.world.p_col -= 1
+                if event.key == pg.K_d and self.world.p_col < self.world.columns-1:
+                    self.world.p_col += 1
+                if event.key == pg.K_w and self.world.p_row > 0:
+                    self.world.p_row -= 1
+                if event.key == pg.K_s and self.world.p_row < self.world.rows-1:
+                    self.world.p_row += 1
+            if event.type == pg.MOUSEBUTTONDOWN:
+                if event.button == 4:
+                    self.world.zoomIn()
+                elif event.button == 5:
+                    self.world.zoomOut()
 
     def update(self):
         self.camera.update()
-        for e in self.entities: e.update()
-        self.hud.update()
         self.world.update(self.camera)
 
     def draw(self):
         self.screen.fill((0, 0, 0))
         self.world.draw(self.screen, self.camera)
-        self.hud.draw(self.screen)
 
         draw_text(
             self.screen,
