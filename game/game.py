@@ -12,7 +12,7 @@ class Game:
         self.width, self.height = self.screen.get_size()
 
         # world
-        self.world = World(50, 50, self.width, self.height)
+        self.world = World(self.screen, 50, 50)
 
         # camera
         self.camera = Camera(self.width, self.height)
@@ -44,9 +44,11 @@ class Game:
                     self.world.p_row += 1
             if event.type == pg.MOUSEBUTTONDOWN:
                 if event.button == 4:
-                    self.world.zoomIn()
+                    #self.world.zoomIn()
+                    pass
                 elif event.button == 5:
-                    self.world.zoomOut()
+                    #self.world.zoomOut()
+                    pass
 
     def update(self):
         self.camera.update()
@@ -62,6 +64,40 @@ class Game:
             25,
             (255, 255, 255),
             (10, 10)
+        )
+
+        draw_text(
+            self.screen,
+            'zoom={}'.format(round(self.world.zoom_level, 2)),
+            25,
+            (255, 255, 255),
+            (10, 30)
+        )
+
+        draw_text(
+            self.screen,
+            'screenX={},screenY={}'.format(self.screen.get_size()[0],self.screen.get_size()[1]),
+            25,
+            (255, 255, 255),
+            (10, 50)
+        )
+
+        m_pos = pg.mouse.get_pos()
+
+        draw_text(
+            self.screen,
+            'mouseX={},mouseY={}'.format(m_pos[0], m_pos[1]),
+            25,
+            (255, 255, 255),
+            (10, 70)
+        )
+
+        draw_text(
+            self.screen,
+            'Map Origin={}'.format(self.world.origin),
+            25,
+            (255, 255, 255),
+            (10, 90)
         )
 
         pg.display.flip()
