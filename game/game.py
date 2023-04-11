@@ -1,7 +1,8 @@
 import pygame as pg
+import math
 import sys
 from .world import World
-from .settings import TILE_SIZE, MIN_ZOOM, MAX_ZOOM, ZOOM_FACTOR
+from .settings import TILE_SIZE, ZOOM_MAX, ZOOM_MAX, ZOOM_FACTOR
 from .utils import draw_text
 from .camera import Camera
 
@@ -15,7 +16,7 @@ class Game:
         self.world = World(self.screen, 50, 50)
 
         # camera
-        self.camera = Camera(self.width, self.height)
+        self.camera = Camera(self.width, self.height, 1)
 
     def run(self):
         self.playing = True
@@ -44,10 +45,10 @@ class Game:
                     self.world.p_row += 1
             if event.type == pg.MOUSEBUTTONDOWN:
                 if event.button == 4:
-                    #self.world.zoomIn()
+                    self.camera.zoomIn()
                     pass
                 elif event.button == 5:
-                    #self.world.zoomOut()
+                    self.camera.zoomOut()
                     pass
 
     def update(self):
@@ -68,7 +69,7 @@ class Game:
 
         draw_text(
             self.screen,
-            'zoom={}'.format(round(self.world.zoom_level, 2)),
+            'zoom={}'.format(round(self.camera.zoom, 2)),
             25,
             (255, 255, 255),
             (10, 30)

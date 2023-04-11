@@ -1,15 +1,28 @@
 import pygame as pg
-
+from .settings import ZOOM_FACTOR, ZOOM_MAX, ZOOM_MIN
 class Camera:
-    def __init__(self, width, height):
+    def __init__(self, width, height, zoom):
 
         self.width = width
         self.height = height
+        self.zoom = zoom
 
         self.scroll = pg.Vector2(0, 0)
         self.dx = 0
         self.dy = 0
         self.speed = 25
+
+    def zoomIn(self):
+        if self.zoom < ZOOM_MAX:
+            self.zoom += ZOOM_FACTOR
+        else:
+            self.zoom = ZOOM_MAX
+
+    def zoomOut(self):
+        if self.zoom > ZOOM_MIN:
+            self.zoom -= ZOOM_FACTOR
+        else:
+            self.zoom = ZOOM_MIN
 
     def update(self):
         mouse_pos = pg.mouse.get_pos()
