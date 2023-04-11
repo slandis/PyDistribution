@@ -11,6 +11,7 @@ class Game:
         self.screen = screen
         self.clock = clock
         self.width, self.height = self.screen.get_size()
+        self.click_timer = 0
 
         # world
         self.world = World(self.screen, 50, 50)
@@ -35,16 +36,35 @@ class Game:
                 if event.key == pg.K_ESCAPE:
                     pg.quit()
                     sys.exit()
-                if event.key == pg.K_a and self.world.p_col > 0:
-                    self.world.p_col -= 1
-                if event.key == pg.K_d and self.world.p_col < self.world.columns-1:
-                    self.world.p_col += 1
-                if event.key == pg.K_w and self.world.p_row > 0:
-                    self.world.p_row -= 1
-                if event.key == pg.K_s and self.world.p_row < self.world.rows-1:
-                    self.world.p_row += 1
+                elif event.key == pg.K_c:
+                    self.camera.scroll.update(0, 0)
+                elif event.key == pg.K_z:
+                    self.camera.zoom = 1.0
             if event.type == pg.MOUSEBUTTONDOWN:
-                if event.button == 4:
+                if event.button == 1:   # left button
+                    if self.click_timer == 0:
+                        self.click_timer = pg.time.get_ticks()
+                    else:
+                        if pg.time.get_ticks() - self.click_timer < 500:
+                            mx, my = pg.mouse.get_pos()
+                            cx, cy = self.screen.get_rect().center
+                            # TODO: fix double-click to center 
+
+                            if cy < my:
+                                scrollY = (my - cy) * -2
+                            else:
+                                scrollY = (cy - my) * 2
+
+                            if cx < mx:
+                                scrollX = (mx - cx) * -2
+                            else:
+                                scrollX = (cx - mx) * 2
+                            
+                            self.camera.scroll.update(scrollX, scrollY)
+                            self.click_timer = 0
+                        else:
+                            self.click_timer = 0
+                elif event.button == 4:
                     self.camera.zoomIn()
                     pass
                 elif event.button == 5:
@@ -69,7 +89,7 @@ class Game:
 
         draw_text(
             self.screen,
-            'zoom={}'.format(round(self.camera.zoom, 2)),
+            'Zoom={}'.format(round(self.camera.zoom, 2)),
             25,
             (255, 255, 255),
             (10, 30)
@@ -77,7 +97,7 @@ class Game:
 
         draw_text(
             self.screen,
-            'screenX={},screenY={}'.format(self.screen.get_size()[0],self.screen.get_size()[1]),
+            'Screen={}'.format(self.screen.get_size()),
             25,
             (255, 255, 255),
             (10, 50)
@@ -87,7 +107,7 @@ class Game:
 
         draw_text(
             self.screen,
-            'mouseX={},mouseY={}'.format(m_pos[0], m_pos[1]),
+            'Mouse={}'.format(m_pos),
             25,
             (255, 255, 255),
             (10, 70)
@@ -99,6 +119,21 @@ class Game:
             25,
             (255, 255, 255),
             (10, 90)
+        )
+
+        draw_text(
+            self.screen,
+            'Scroll={}'.format(self.camera.scroll),
+            25,
+            (255, 255, 255),
+            (10, 110)
+        )
+        draw_text(
+            self.screen,
+            'Map Height={}'.format(self.world.tile_height * self.world.columns / 2),
+            25,
+            (255, 255, 255),
+            (10, 130)
         )
 
         pg.display.flip()

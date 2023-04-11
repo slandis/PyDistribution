@@ -17,6 +17,7 @@ class World:
 
         self.columns, self.rows = len(self.tileMap[0]), len(self.tileMap)
         self.game_map = pg.Surface((screen.get_size()), pg.SRCALPHA)
+        self.tile_height = 0
     
     def tileRect(self, column, row, tile_size):
         x = (column + row) * tile_size[0] // 2
@@ -50,6 +51,7 @@ class World:
             isometric_tiles[key] = tile_surf
     
         tile_size = (isometric_size, isometric_size // 2)
+        self.tile_height = tile_size[1]
         
         offsetX = (screen.get_size()[0] + camera.scroll.x - isometric_size * self.columns) / 2
         offsetY = (screen.get_size()[1] + camera.scroll.y - (isometric_size // 2) * self.rows) / 2
@@ -73,8 +75,7 @@ class World:
         self.origin = map_outline[0]
         x_axis = (map_outline[1] - map_outline[0]) / self.columns
         y_axis = (map_outline[3] - map_outline[0]) / self.rows
-    
-        print(self.columns)
+   
         point_to_grid = self.inverseMat2x2((x_axis, y_axis))
         
         m_pos = pg.mouse.get_pos()
