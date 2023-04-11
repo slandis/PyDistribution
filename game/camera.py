@@ -1,5 +1,6 @@
 import pygame as pg
 from .settings import ZOOM_FACTOR, ZOOM_MAX, ZOOM_MIN
+
 class Camera:
     def __init__(self, width, height, zoom):
 
