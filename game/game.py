@@ -5,7 +5,7 @@ from .world import World
 from .settings import TILE_SIZE, ZOOM_MAX, ZOOM_MAX, ZOOM_FACTOR
 from .utils import draw_text
 from .camera import Camera
-from .menu import ContextMenu
+from .menu import ContextMenu, STATE_HOVER, STATE_NORMAL
 
 class Game:
     def __init__(self, screen, clock):
@@ -53,7 +53,9 @@ class Game:
                         self.click_timer = pg.time.get_ticks()
 
                         if self.cmenu.hit_test(event.pos):
-                            self.cmenu.update(event)
+                            self.cmenu.menuClick(event.pos, self.camera)
+                        else:
+                            self.cmenu.hide()
                     else:
                         if pg.time.get_ticks() - self.click_timer < 500:
                             mx, my = event.pos
@@ -82,7 +84,7 @@ class Game:
                     self.camera.zoomOut()
             elif event.type == pg.MOUSEMOTION:
                 if self.cmenu.hit_test(event.pos):
-                    self.cmenu.update(event)
+                    self.cmenu.menuHover(event.pos)
 
     def update(self):
         self.camera.update()

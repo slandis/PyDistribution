@@ -1,5 +1,6 @@
 import pygame as pg
-
+import sys
+from .IEvent import IEvent
 from .utils import draw_text
 
 BUTTON_HEIGHT = 30
@@ -12,22 +13,37 @@ BUTTON_HEADER = 1
 BUTTON_RECENTER = 2
 BUTTON_EXIT = 3
 
-STATE_UNPRESSED = 1
+STATE_NORMAL = 1
 STATE_PRESSED = 2
 STATE_HOVER = 3
 
-contextMenuItems = [
-    {'type': ITEM_HEADER, 'id': BUTTON_HEADER, 'text': 'Tools', 'state': STATE_UNPRESSED},
-    {'type': ITEM_BUTTON, 'id': BUTTON_RECENTER, 'text': 'Re-Center', 'state': STATE_UNPRESSED},
-    {'type': ITEM_BUTTON, 'id': BUTTON_EXIT, 'text': 'Exit', 'state': STATE_UNPRESSED}
-]
+class ContextMenu(IEvent):
+    menuItems = [
+        {'type': ITEM_HEADER, 'name': 'HEADER', 'text': 'Tools', 'state': STATE_NORMAL, 'callback': None},
+        {'type': ITEM_BUTTON, 'name': 'btnRecenter', 'text': 'Re-Center', 'state': STATE_NORMAL, 'callback': 'btnRecenter_click'},
+        {'type': ITEM_BUTTON, 'name': 'btnExit', 'text': 'Exit', 'state': STATE_NORMAL, 'callback': 'btnExit_click'}
+    ]
 
-class ContextMenu:
     def __init__(self):
         self.display = False
-        self.menuItems = contextMenuItems
+        #self.menuItems = self.contextMenuItems
         self.position = (0, 0)
-    
+
+    def cb(self, item, *args, **kwargs):
+        func_name = item['callback']
+
+        if func_name and hasattr(self, func_name):
+            return getattr(self, func_name)(*args, **kwargs)
+        else:
+            return None
+
+    def btnRecenter_click(self, camera):
+        camera.scroll = pg.Vector2(0, 0)
+
+    def btnExit_click(self, args):
+        pg.quit()
+        sys.exit()
+
     def show(self, position):
         self.position = position
         self.display = True
@@ -41,32 +57,38 @@ class ContextMenu:
 
     def hit_test(self, point):
         if self.display == True:
-            print('{},{}'.format(point, self.rect))
-
             if self.rect.collidepoint(point):
-                print("Menu Hit Test True")
                 return True
             
         return False
-
-    def update(self, event):
+    
+    def menuClick(self, pos, args):
         if self.display == True:
             i = 0
 
             for item in self.menuItems:
                 rect = pg.Rect(self.rect.topleft[0], self.rect.topleft[1] + i, MENU_WIDTH, BUTTON_HEIGHT)
 
-                if rect.collidepoint(event.pos) and item['type'] == ITEM_BUTTON:
-                    print("Menu Item Hit Test True")
-                    if event.type == pg.MOUSEBUTTONDOWN:
-                        item['state'] = STATE_PRESSED
-                    elif event.type == pg.MOUSEMOTION:
-                        item['state'] = STATE_HOVER
-                else:
-                    item['state'] = STATE_UNPRESSED
+                if rect.collidepoint(pos) and item['type'] == ITEM_BUTTON:
+                    item['state'] = STATE_NORMAL
+                    self.cb(item, args)
+                    self.hide()
                 
                 i += BUTTON_HEIGHT
 
+    def menuHover(self, pos):
+        if self.display == True:
+            i = 0
+
+            for item in self.menuItems:
+                rect = pg.Rect(self.rect.topleft[0], self.rect.topleft[1] + i, MENU_WIDTH, BUTTON_HEIGHT)
+
+                if rect.collidepoint(pos) and item['type'] == ITEM_BUTTON:
+                    item['state'] = STATE_HOVER
+                else:
+                    item['state'] = STATE_NORMAL
+                
+                i += BUTTON_HEIGHT
 
     def draw(self, screen):
         if self.display == True:
